@@ -1,6 +1,4 @@
 import java.util.concurrent.ThreadLocalRandom
-import java.util.concurrent.atomic.AtomicIntegerArray
-import kotlin.system.measureTimeMillis
 
 fun main() {
     Lotto.generateGuessesMultiThreaded()
@@ -8,7 +6,7 @@ fun main() {
 
 class Lotto {
     private val lottoNumbers: Set<Int> = generateLottoNumbers()
-    private val stats = AtomicIntegerArray(8)
+    private val stats = IntArray(8)
 
     init {
         println("Lotto numbers: $lottoNumbers")
@@ -23,49 +21,47 @@ class Lotto {
 
     fun check(numbers: List<Int>) {
         val matches = numbers.count { it in lottoNumbers }
-        stats.incrementAndGet(matches)
+        stats[matches]++
     }
-
-    fun getStats(): IntArray = IntArray(8) { stats[it] }
 
     companion object {
         private const val TOTAL_GUESSES = 13_500_000
         private val THREAD_COUNT = Runtime.getRuntime().availableProcessors()
 
-        fun generateGuessesMultiThreaded(): IntArray {
+        fun generateGuessesMultiThreaded() {
             val lotto = Lotto()
-            val threads = mutableListOf<Thread>()
             val guessesPerThread = TOTAL_GUESSES / THREAD_COUNT
 
-            val time = measureTimeMillis {
-                repeat(THREAD_COUNT) { threadIndex ->
-                    val thread = Thread {
-                        println("Thread ${threadIndex + 1}/$THREAD_COUNT starting for $guessesPerThread guesses")
-                        repeat(guessesPerThread) {
-                            val guess = generateSequence { ThreadLocalRandom.current().nextInt(1, 41) }
-                                .distinct()
-                                .take(7)
-                                .toList()
-                            lotto.check(guess)
-                        }
+
+            val startTime = System.currentTimeMillis()
+
+            val threads = (1..THREAD_COUNT).map { threadIndex ->
+                Thread {
+                    println("Thread ${threadIndex}/$THREAD_COUNT starting for $guessesPerThread guesses")
+                    repeat(guessesPerThread) {
+                        val guess = generateSequence { ThreadLocalRandom.current().nextInt(1, 41) }
+                            .distinct()
+                            .take(7)
+                            .toList()
+                        lotto.check(guess)
                     }
-                    threads.add(thread)
-                    thread.start()
                 }
-
-                threads.forEach { it.join() }
             }
+
+            threads.forEach { it.start() }
+            threads.forEach { it.join() }
+
+            val endTime = System.currentTimeMillis()
+
+            val runningTime = endTime - startTime
             println("All joined")
-            println("Running time $time ms")
+            println("Running time: $runningTime ms")
 
-            val stats = lotto.getStats()
-            val checksum = stats.sum()
+            val checksum = lotto.stats.sum()
             println("Checksum: $checksum should be $TOTAL_GUESSES")
-            stats.forEachIndexed { index, value -> println("$index: $value") }
 
-            return stats
+
+            lotto.stats.forEachIndexed { index, value -> println("$index hits: $value guesses") }
         }
     }
 }
-
-
