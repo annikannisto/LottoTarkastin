@@ -25,7 +25,7 @@ class Lotto {
     }
 
     companion object {
-        private const val TOTAL_GUESSES = 13_500_000
+        private const val TOTAL_GUESSES = 50_500_000
         private val THREAD_COUNT = Runtime.getRuntime().availableProcessors()
 
         fun generateGuessesMultiThreaded() {
